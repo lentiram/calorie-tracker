@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Tally</title>
+<style>
+  :root{
+    --ink:#1c2b28;
+    --paper:#f2ede3;
+    --line:#c9c0ab;
+    --accent:#3c6e5e;
+    --accent-soft:#c8d9c9;
+    --danger:#a13f3f;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Georgia','Iowan Old Style',serif;
+    display:flex;
+    justify-content:center;
+    min-height:100vh;
+  }
+  .app{
+    width:100%;
+    max-width:480px;
+    padding:28px 20px 60px;
+  }
+  .date-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    border-bottom:2px solid var(--ink);
+    padding-bottom:10px;
+    margin-bottom:18px;
+  }
+  .date-row .label{
+    font-size:13px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    opacity:.65;
+  }
+  .date-row .date{
+    font-size:16px;
+    font-weight:bold;
+  }
+  .total-block{
+    text-align:center;
+    padding:26px 0 30px;
+    position:relative;
+  }
+  .total-number{
+    font-size:76px;
+    font-weight:bold;
+    line-height:1;
+    letter-spacing:-.02em;
+    font-variant-numeric:tabular-nums;
+  }
+  .total-label{
+    margin-top:6px;
+    font-size:13px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    opacity:.6;
+  }
+  .goal-row{
+    text-align:center;
+    margin-top:10px;
+    font-size:13px;
+    opacity:.75;
+  }
+  .goal-row button{
+    background:none;
+    border:none;
+    color:var(--accent);
+    font-family:inherit;
+    font-size:13px;
+    text-decoration:underline;
+    cursor:pointer;
+    padding:0;
+  }
+  .bar-track{
+    height:6px;
+    border-radius:3px;
+    background:var(--accent-soft);
+    margin-top:12px;
+    overflow:hidden;
+  }
+  .bar-fill{
+    height:100%;
+    background:var(--accent);
+    width:0%;
+    transition:width .3s ease;
+  }
+  form.entry-form{
+    display:flex;
+    gap:8px;
+    margin:22px 0 20px;
+  }
+  .entry-form input[type=text]{
+    flex:1.4;
+  }
+  .entry-form input[type=number]{
+    flex:1;
+    width: 90px;
+  }
+  input{
+    font-family:inherit;
+    font-size:16px;
+    padding:12px 12px;
+    border:2px solid var(--ink);
+    border-radius:8px;
+    background:#fff;
+    color:var(--ink);
+    min-width:0;
+  }
+  input:focus{
+    outline:none;
+    border-color:var(--accent);
+  }
+  .add-btn{
+    border:2px solid var(--ink);
+    background:var(--ink);
+    color:var(--paper);
+    font-family:inherit;
+    font-size:22px;
+    line-height:1;
+    border-radius:8px;
+    padding:0 16px;
+    cursor:pointer;
+    flex:0 0 auto;
+  }
+  .add-btn:active{ transform:scale(.96); }
+
+  .entries{
+    list-style:none;
+    margin:0;
+    padding:0;
+  }
+  .entries li{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:12px 2px;
+    border-bottom:1px solid var(--line);
+    font-size:16px;
+  }
+  .entries li .name{
+    flex:1;
+    padding-right:10px;
+    word-break:break-word;
+  }
+  .entries li .name.empty{ opacity:.5; font-style:italic; }
+  .entries li .cals{
+    font-variant-numeric:tabular-nums;
+    font-weight:bold;
+    margin-right:10px;
+    white-space:nowrap;
+  }
+  .entries li .del{
+    background:none;
+    border:none;
+    color:var(--danger);
+    font-size:18px;
+    cursor:pointer;
+    padding:2px 6px;
+    line-height:1;
+  }
+  .empty-state{
+    text-align:center;
+    padding:30px 10px;
+    opacity:.55;
+    font-style:italic;
+    font-size:15px;
+  }
+
+  .history{
+    margin-top:40px;
+    border-top:2px solid var(--ink);
+    padding-top:16px;
+  }
+  .history h2{
+    font-size:13px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    opacity:.65;
+    margin:0 0 10px;
+    font-weight:normal;
+  }
+  .history li{
+    display:flex;
+    justify-content:space-between;
+    padding:8px 2px;
+    border-bottom:1px solid var(--line);
+    font-size:15px;
+    list-style:none;
+  }
+  .history li span:last-child{
+    font-weight:bold;
+    font-variant-numeric:tabular-nums;
+  }
+  .hint{
+    text-align:center;
+    font-size:12px;
+    opacity:.5;
+    margin-top:30px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="date-row">
+    <div class="label">Today</div>
+    <div class="date" id="todayLabel"></div>
+  </div>
+
+  <div class="total-block">
+    <div class="total-number" id="totalNumber">0</div>
+    <div class="total-label">calories today</div>
+    <div class="goal-row" id="goalRow"></div>
+    <div class="bar-track" id="barTrack" style="display:none">
+      <div class="bar-fill" id="barFill"></div>
+    </div>
+  </div>
+
+  <form class="entry-form" id="entryForm">
+    <input type="text" id="foodName" placeholder="Food (optional)" autocomplete="off">
+    <input type="number" id="foodCals" placeholder="Cal" inputmode="numeric" min="0" required>
+    <button type="submit" class="add-btn" aria-label="Add entry">+</button>
+  </form>
+
+  <ul class="entries" id="entriesList"></ul>
+  <div class="empty-state" id="emptyState" style="display:none">No entries yet today.</div>
+
+  <div class="history">
+    <h2>Past Days</h2>
+    <ul id="historyList"></ul>
+  </div>
+
+  <div class="hint">Stored only on this phone. Works fully offline.</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'tally_days_v1';
+const GOAL_KEY = 'tally_goal_v1';
+
+function todayKey(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function loadDays(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  }catch(e){ return {}; }
+}
+function saveDays(days){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(days));
+}
+function loadGoal(){
+  const raw = localStorage.getItem(GOAL_KEY);
+  return raw ? parseInt(raw,10) : null;
+}
+function saveGoal(g){
+  if(g === null) localStorage.removeItem(GOAL_KEY);
+  else localStorage.setItem(GOAL_KEY, String(g));
+}
+
+let days = loadDays();
+let goal = loadGoal();
+const key = todayKey();
+if(!days[key]) days[key] = [];
+
+const todayLabel = document.getElementById('todayLabel');
+const totalNumber = document.getElementById('totalNumber');
+const entriesList = document.getElementById('entriesList');
+const emptyState = document.getElementById('emptyState');
+const historyList = document.getElementById('historyList');
+const goalRow = document.getElementById('goalRow');
+const barTrack = document.getElementById('barTrack');
+const barFill = document.getElementById('barFill');
+const entryForm = document.getElementById('entryForm');
+const foodName = document.getElementById('foodName');
+const foodCals = document.getElementById('foodCals');
+
+todayLabel.textContent = new Date().toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric'});
+
+function render(){
+  const todays = days[key] || [];
+  const total = todays.reduce((sum,e)=>sum+e.cals,0);
+  totalNumber.textContent = total;
+
+  entriesList.innerHTML = '';
+  emptyState.style.display = todays.length ? 'none' : 'block';
+  todays.slice().reverse().forEach((e)=>{
+    const realIndex = todays.indexOf(e);
+    const li = document.createElement('li');
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'name' + (e.name ? '' : ' empty');
+    nameSpan.textContent = e.name || 'entry';
+    const calsSpan = document.createElement('span');
+    calsSpan.className = 'cals';
+    calsSpan.textContent = e.cals;
+    const delBtn = document.createElement('button');
+    delBtn.className = 'del';
+    delBtn.textContent = '✕';
+    delBtn.setAttribute('aria-label','Delete entry');
+    delBtn.onclick = ()=>{
+      todays.splice(realIndex,1);
+      saveDays(days);
+      render();
+    };
+    li.appendChild(nameSpan);
+    li.appendChild(calsSpan);
+    li.appendChild(delBtn);
+    entriesList.appendChild(li);
+  });
+
+  // goal row
+  goalRow.innerHTML = '';
+  if(goal){
+    const pct = Math.min(100, Math.round((total/goal)*100));
+    const remaining = goal - total;
+    const span = document.createElement('span');
+    span.textContent = remaining >= 0 ? (remaining + ' left of ' + goal) : ((-remaining) + ' over ' + goal);
+    goalRow.appendChild(span);
+    goalRow.appendChild(document.createTextNode('  '));
+    const editBtn = document.createElement('button');
+    editBtn.textContent = 'edit';
+    editBtn.onclick = setGoal;
+    goalRow.appendChild(editBtn);
+    barTrack.style.display = 'block';
+    barFill.style.width = pct + '%';
+    barFill.style.background = remaining < 0 ? 'var(--danger)' : 'var(--accent)';
+  } else {
+    const setBtn = document.createElement('button');
+    setBtn.textContent = 'Set a daily goal';
+    setBtn.onclick = setGoal;
+    goalRow.appendChild(setBtn);
+    barTrack.style.display = 'none';
+  }
+
+  // history: past days, excluding today, most recent first
+  historyList.innerHTML = '';
+  const otherKeys = Object.keys(days).filter(k=>k!==key).sort().reverse();
+  if(otherKeys.length === 0){
+    const li = document.createElement('li');
+    li.style.opacity = '.5';
+    li.style.fontStyle = 'italic';
+    li.textContent = 'No history yet.';
+    historyList.appendChild(li);
+  } else {
+    otherKeys.slice(0,14).forEach(k=>{
+      const dayTotal = days[k].reduce((s,e)=>s+e.cals,0);
+      const li = document.createElement('li');
+      const dateSpan = document.createElement('span');
+      const d = new Date(k + 'T00:00:00');
+      dateSpan.textContent = d.toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric'});
+      const totalSpan = document.createElement('span');
+      totalSpan.textContent = dayTotal;
+      li.appendChild(dateSpan);
+      li.appendChild(totalSpan);
+      historyList.appendChild(li);
+    });
+  }
+}
+
+function setGoal(){
+  const val = prompt('Daily calorie goal:', goal || '');
+  if(val === null) return;
+  const num = parseInt(val,10);
+  goal = (val.trim() === '' || isNaN(num)) ? null : num;
+  saveGoal(goal);
+  render();
+}
+
+entryForm.addEventListener('submit', function(ev){
+  ev.preventDefault();
+  const cals = parseInt(foodCals.value,10);
+  if(isNaN(cals) || cals < 0) return;
+  const name = foodName.value.trim();
+  days[key].push({name, cals, t: Date.now()});
+  saveDays(days);
+  foodName.value = '';
+  foodCals.value = '';
+  foodName.focus();
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
